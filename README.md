@@ -5,7 +5,7 @@
 ## Informasi Peserta
 | No | Nama | Email Dicoding |
 |---|---|---|
-| 1 | Muhammad Ikhwan Fathulloh | [Masukkan Email Dicoding Anda] |
+| 1 | Muhammad Ikhwan Fathulloh | muhammadikhwanfathulloh17@gmail.com |
 
 ---
 
