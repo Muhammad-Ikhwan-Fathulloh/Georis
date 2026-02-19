@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEORIS - Geo-Risk Intelligence System</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Space+Grotesk:wght@500;700&display=swap"
+        rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Marked.js for Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                    },
+                    colors: {
+                        night: '#020617',
+                        accent: '#0ea5e9',
+                        warning: '#f59e0b',
+                        danger: '#ef4444',
+                        neural: '#a855f7'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Custom Style -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-[var(--bg-main)] text-[var(--text-main)] antialiased font-sans transition-colors duration-300">
+
+    <!-- MODAL ANALISIS AI (LENGKAP DENGAN DATA CAP) -->
+    <div id="ai-modal"
+        class="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-night/90 backdrop-blur-md invisible opacity-0 transition-all duration-300">
+        <div class="glass w-full max-w-2xl rounded-[2.5rem] overflow-hidden shadow-2xl border border-white/10 transform transition-transform duration-300 scale-95 flex flex-col max-h-[90vh]"
+            id="modal-content-wrapper">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-white/5 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-neural rounded-xl flex items-center justify-center ai-glow">
+                        <i data-lucide="brain" class="text-white w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-display font-bold text-white leading-tight">Neural Intelligence Report
+                        </h3>
+                        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Data CAP & Analisis
+                            Risiko Terpadu</p>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="p-2 hover:bg-white/5 rounded-full transition-colors">
+                    <i data-lucide="x" class="w-6 h-6 text-slate-400"></i>
+                </button>
+            </div>
+
+            <div id="modal-body" class="p-6 md:p-8 overflow-y-auto list-scrollbar space-y-8 text-sm">
+                <!-- Diisi via JS -->
+            </div>
+
+            <div
+                class="p-6 border-t border-[var(--border-main)] flex justify-between items-center shrink-0 bg-white/[0.02]">
+                <div class="flex items-center gap-2 text-[var(--text-dim)]">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">BMKG Nowcast
+                        Integrated</span>
+                </div>
+                <button onclick="closeModal()"
+                    class="px-8 py-2.5 bg-[var(--card-bg)] hover:bg-[var(--card-hover)] rounded-xl text-xs font-bold text-[var(--text-main)] transition-all uppercase tracking-widest border border-[var(--border-main)]">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVBAR -->
+    <nav class="sticky top-0 z-[100] glass border-b border-white/5 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-neural rounded-xl flex items-center justify-center ai-glow">
+                    <i data-lucide="brain-circuit" class="text-white w-6 h-6"></i>
+                </div>
+                <h1 class="font-display font-bold text-xl tracking-tight text-[var(--text-main)] uppercase">
+                    GEO<span class="text-neural">RIS</span></h1>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0">
+                    <button onclick="setFilter('all')" id="btn-all"
+                        class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg filter-btn-active">Semua</button>
+                    <button onclick="setFilter('quake')" id="btn-quake"
+                        class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg text-slate-500">Gempa</button>
+                    <button onclick="setFilter('weather')" id="btn-weather"
+                        class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg text-slate-500">Cuaca</button>
+                    <div class="w-px h-4 bg-white/10 mx-1 self-center"></div>
+                    <button onclick="focusIndonesia()"
+                        class="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg text-accent hover:bg-accent/10 flex items-center gap-1.5">
+                        <i data-lucide="maximize" class="w-3 h-3"></i> ID Fokus
+                    </button>
+                </div>
+                <button onclick="toggleTheme()"
+                    class="p-2.5 bg-[var(--card-bg)] hover:bg-[var(--card-hover)] rounded-xl border border-[var(--border-main)] transition-all flex items-center gap-2 group"
+                    title="Ubah Tema">
+                    <i id="theme-icon" data-lucide="moon" class="w-4 h-4 text-neural"></i>
+                    <span id="theme-text"
+                        class="text-[9px] font-bold uppercase tracking-wider text-[var(--text-dim)]">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- LEFT CONTENT -->
+        <div class="lg:col-span-8 space-y-6">
+            <section class="glass rounded-[2.5rem] p-6">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-xl font-display font-bold text-white flex items-center gap-2">
+                            <i data-lucide="map-pin" class="text-accent w-5 h-5"></i> Geo-Spatial Intelligence
+                        </h2>
+                        <p class="text-slate-400 text-xs italic">Lokasi Anda: <span
+                                id="user-location-text">Mendeteksi...</span></p>
+                    </div>
+                    <div
+                        class="flex items-center gap-2 px-3 py-1 bg-purple-500/10 rounded-full border border-purple-500/20">
+                        <i data-lucide="shield-check" class="w-3 h-3 text-purple-400"></i>
+                        <span class="text-[9px] font-bold text-purple-400 uppercase tracking-widest">Neural Guard
+                            Active</span>
+                    </div>
+                </div>
+
+                <div id="map" class="border border-white/5 shadow-2xl relative mb-8"></div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col justify-center">
+                        <span class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Magnitudo Terakhir</span>
+                        <span id="stat-latest" class="text-2xl font-display font-bold text-accent">--</span>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5 flex flex-col justify-center">
+                        <span class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Kondisi Cuaca
+                            (Lokal)</span>
+                        <div class="flex items-center gap-2 text-[var(--text-dim)]">
+                            <span id="stat-weather-val" class="text-lg font-display font-bold text-warning">--</span>
+                            <span id="stat-temp" class="text-xs text-slate-400 italic">--</span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-2xl border border-white/5 col-span-2">
+                        <span class="text-[9px] text-slate-500 font-bold uppercase block mb-1">Wilayah Fokus
+                            Utama</span>
+                        <span id="stat-loc"
+                            class="text-[11px] font-bold text-white leading-tight block truncate">Menghubungkan...</span>
+                    </div>
+                </div>
+
+                <!-- PREDICTIVE ANALYTICS SECTION -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-5 bg-neural/5 rounded-[2rem] border border-neural/10 relative overflow-hidden group">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-[10px] font-bold text-neural uppercase tracking-widest mb-1">Local AI
+                                    Nowcast</h4>
+                                <div id="nowcast-status"
+                                    class="text-xs font-bold text-slate-400 uppercase tracking-tighter italic">
+                                    Initializing...</div>
+                            </div>
+                            <div class="text-xl font-display font-bold text-white" id="nowcast-score">--%</div>
+                        </div>
+                        <p id="nowcast-rec" class="text-[10px] text-slate-400 leading-relaxed italic">Menganalisis
+                            proximity data dan kondisi atmosfer lokal untuk estimasi risiko per menit...</p>
+                        <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i data-lucide="shield-alert" class="w-16 h-16 text-neural"></i>
+                        </div>
+                    </div>
+
+                    <div class="p-5 bg-accent/5 rounded-[2rem] border border-accent/10 relative overflow-hidden group">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-[10px] font-bold text-accent uppercase tracking-widest mb-1">Seismic
+                                    Forecast</h4>
+                                <div id="forecast-trend"
+                                    class="text-xs font-bold text-slate-400 uppercase tracking-tighter italic">
+                                    Processing Trends...</div>
+                            </div>
+                            <div class="text-xl font-display font-bold text-white" id="forecast-mag">-- M</div>
+                        </div>
+                        <p id="forecast-desc" class="text-[10px] text-slate-400 leading-relaxed italic">Menggunakan
+                            TensorFlow.js Time-Series Model untuk memprediksi potensi magnitudo berikutnya...</p>
+                        <div class="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform">
+                            <i data-lucide="brain-circuit" class="w-16 h-16 text-accent"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ANALYTICS CHART -->
+            <section class="glass rounded-[2.5rem] p-6">
+                <h3
+                    class="text-sm font-display font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-wider">
+                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-neural"></i> Tren Aktivitas Seismik (BMKG Feed)
+                </h3>
+                <div class="h-48 w-full">
+                    <canvas id="quakeTrendChart"></canvas>
+                </div>
+            </section>
+
+            <!-- GEOLOGICAL RESOURCES & EDUCATION -->
+            <section class="glass rounded-[2.5rem] p-8">
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="w-10 h-10 bg-accent/20 rounded-xl flex items-center justify-center text-accent">
+                        <i data-lucide="library" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-display font-bold text-white uppercase tracking-tight">Geological
+                            Resources & Education</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Pusat Pengetahuan
+                            Mitigasi & Sains Geologi</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="edu-cards-container">
+                    <!-- Cards with verified stable links -->
+                    <a href="https://www.bmkg.go.id/gempabumi" target="_blank"
+                        class="group p-5 bg-[var(--card-bg)] rounded-2xl border border-[var(--border-main)] hover:bg-[var(--card-hover)] transition-all">
+                        <i data-lucide="shield-alert"
+                            class="w-5 h-5 text-warning mb-3 group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-xs font-bold text-white mb-1">Mitigasi Bencana</h4>
+                        <p class="text-[10px] text-slate-400">Panduan resmi BMKG tentang langkah penyelamatan diri saat
+                            gempa bumi.</p>
+                    </a>
+                    <a href="https://www.usgs.gov/programs/earthquake-hazards" target="_blank"
+                        class="group p-5 bg-[var(--card-bg)] rounded-2xl border border-[var(--border-main)] hover:bg-[var(--card-hover)] transition-all">
+                        <i data-lucide="microscope"
+                            class="w-5 h-5 text-neural mb-3 group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-xs font-bold text-white mb-1">Pusat Belajar USGS</h4>
+                        <p class="text-[10px] text-slate-400">Kamus istilah teknis dan sains dasar seismologi dari
+                            lembaga pemantau global.</p>
+                    </a>
+                    <a href="https://www.iris.edu/hq/inclass/search#page=1&limit=20&concept[]=4&concept[]=3&concept[]=5&concept[]=6&concept[]=7&language[]=1"
+                        target="_blank"
+                        class="group p-5 bg-[var(--card-bg)] rounded-2xl border border-[var(--border-main)] hover:bg-[var(--card-hover)] transition-all">
+                        <i data-lucide="waves"
+                            class="w-5 h-5 text-accent mb-3 group-hover:scale-110 transition-transform"></i>
+                        <h4 class="text-xs font-bold text-white mb-1">Animasi IRIS</h4>
+                        <p class="text-[10px] text-slate-400">Koleksi visualisasi interaktif gelombang seismik dan
+                            dinamika lempeng bumi.</p>
+                    </a>
+                </div>
+
+                <div class="mt-8 p-6 bg-accent/5 rounded-3xl border border-accent/20 relative overflow-hidden"
+                    id="geo-fact-container">
+                    <div class="flex items-start gap-4">
+                        <i data-lucide="book-open" class="w-5 h-5 text-accent mt-1"></i>
+                        <div id="geo-fact-content">
+                            <h4 class="text-xs font-bold text-white mb-2 uppercase tracking-wider">Tahukah Anda?</h4>
+                            <p class="text-[11px] text-slate-300 leading-relaxed italic animate-pulse">Menghubungkan ke
+                                Neural Knowledge Base...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- RIGHT SIDEBAR: ABOUT & FEED -->
+        <div class="lg:col-span-4 space-y-6">
+            <!-- ABOUT GEORIS -->
+            <section
+                class="glass rounded-[2.5rem] p-6 border border-neural/20 bg-neural/5 relative overflow-hidden group">
+                <div class="absolute -right-6 -top-6 opacity-10 group-hover:scale-110 transition-transform">
+                    <i data-lucide="shield-check" class="w-24 h-24 text-neural"></i>
+                </div>
+                <div class="relative z-10">
+                    <h3 class="text-xs font-bold text-neural uppercase tracking-[0.2em] mb-3">About System</h3>
+                    <h2 class="text-xl font-display font-bold text-[var(--text-main)] mb-2">GEORIS</h2>
+                    <p class="text-[10px] text-[var(--text-dim)] leading-relaxed italic mb-4">
+                        <strong>Geo-Risk Intelligence System</strong>. Platform analitik spasial yang menggabungkan
+                        kecerdasan buatan (AI) dengan data real-time BMKG/USGS untuk memitigasi risiko bencana geologi
+                        di wilayah Nusantara.
+                    </p>
+                    <div class="grid grid-cols-2 gap-2 text-[9px] font-bold uppercase tracking-tighter">
+                        <div class="flex items-center gap-1.5 text-emerald-500">
+                            <i data-lucide="check-circle" class="w-3 h-3"></i> 24/7 Monitoring
+                        </div>
+                        <div class="flex items-center gap-1.5 text-neural">
+                            <i data-lucide="zap" class="w-3 h-3"></i> Neural Prediction
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="glass rounded-[2.5rem] p-6 flex-1 flex flex-col h-full max-h-[800px]">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center text-indigo-400">
+                        <i data-lucide="rss" class="w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-sm font-display font-bold text-white uppercase tracking-wider">Live Activity Feed
+                    </h2>
+                </div>
+
+                <div id="alert-feed" class="flex-1 space-y-3 overflow-y-auto pr-2 list-scrollbar">
+                    <div class="animate-pulse space-y-3">
+                        <div class="h-16 bg-white/5 rounded-2xl"></div>
+                        <div class="h-16 bg-white/5 rounded-2xl"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer
+        class="max-w-7xl mx-auto px-6 py-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-500">
+        <div class="flex items-center gap-2 text-[var(--text-dim)]">
+            <i data-lucide="info" class="w-4 h-4"></i>
+            <span class="text-[10px] uppercase font-bold tracking-widest">Sumber Data: <a href="https://bmkg.go.id"
+                    target="_blank" class="text-accent hover:underline">bmkg.go.id</a> & <a
+                    href="https://earthquake.usgs.gov" target="_blank"
+                    class="text-accent hover:underline">usgs.gov</a></span>
+        </div>
+        <div class="text-[10px] uppercase font-bold tracking-tighter">
+            © 2026 Nusantara Alert AI. Geo-Spatial Monitoring System.
+        </div>
+    </footer>
+
+    <!-- FLOATING CHATBOT BUBBLE -->
+    <div class="fixed bottom-6 right-6 z-[2000] flex flex-col items-end">
+        <!-- Chat Window -->
+        <div id="chat-window"
+            class="glass w-[350px] sm:w-[400px] h-[500px] rounded-[2.5rem] mb-4 shadow-2xl border border-white/10 flex flex-col overflow-hidden opacity-0 pointer-events-none translate-y-10 transition-all duration-300">
+            <div class="p-5 bg-neural/20 border-b border-white/10 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-neural rounded-lg flex items-center justify-center ai-glow">
+                        <i data-lucide="bot" class="text-white w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-[var(--text-main)] uppercase tracking-wider">GEORIS Assistant
+                        </h4>
+                        <div class="flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                            <span class="text-[7px] text-slate-400 font-bold uppercase tracking-tighter">Emergency &
+                                First Aid Assistant</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="toggleExpandChat()" class="p-1.5 hover:bg-white/5 rounded-lg" title="Resize Chat">
+                        <i id="chat-resize-icon" data-lucide="maximize-2" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                    <button onclick="toggleChat()" class="p-1.5 hover:bg-white/5 rounded-lg">
+                        <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Content -->
+            <div id="chat-box"
+                class="flex-1 overflow-y-auto p-5 space-y-4 list-scrollbar bg-[var(--sidebar-bg)] text-[11px]">
+                <div
+                    class="bg-[var(--card-bg)] p-3 rounded-2xl border border-[var(--border-main)] mr-8 text-[var(--text-main)]">
+                    Halo! Saya **GEORIS**. Saya dapat memberikan panduan pertolongan pertama atau rute evakuasi
+                    tercepat saat darurat. Apa yang bisa saya bantu?
+                </div>
+            </div>
+
+            <!-- Sugesti Pertanyaan -->
+            <div id="chat-suggestions"
+                class="px-5 py-2 flex gap-2 overflow-x-auto no-scrollbar border-t border-white/5">
+                <!-- Diisi via JS -->
+            </div>
+
+            <!-- Chat Input -->
+            <div class="p-4 bg-white/[0.02] border-t border-white/5">
+                <div class="relative">
+                    <input type="text" id="chat-input" placeholder="Tanyakan pertolongan pertama atau rute..."
+                        class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-neural/50 transition-all pr-16">
+                    <div class="absolute right-2 top-2 flex items-center gap-2">
+                        <button class="text-slate-500 hover:text-white transition-colors">
+                            <i data-lucide="mic" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="handleChat()" class="text-neural hover:text-white transition-colors">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle Button -->
+        <button id="chat-toggle" onclick="toggleChat()"
+            class="w-16 h-16 bg-neural rounded-2xl flex items-center justify-center shadow-2xl ai-glow hover:scale-110 active:scale-95 transition-all group">
+            <i data-lucide="message-square" class="text-white w-7 h-7 group-hover:hidden"></i>
+            <i data-lucide="x" class="text-white w-7 h-7 hidden group-hover:block"></i>
+        </button>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
